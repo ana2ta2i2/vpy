@@ -1,0 +1,28 @@
+url = "https://pokemon.fandom.com/ru/wiki/%D0%9F%D0%BE%D0%BA%D0%BE%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5_I"
+response = requests.get(url)
+soup = BeautifulSoup(response.text, 'html')
+
+items = []
+
+for row in soup.find_all("tr")[1:]:
+    columns = row.find_all("td")
+    if len(columns) >= 5:
+        index_character = columns[0].text.strip()
+        hero = columns[2].text.strip()
+        url = columns[1].find("img")["data-src"]
+        type_1 = columns[3].text.strip()
+        type_2 = columns[4].text.strip()
+
+        items.append({
+            "index_character": index_character,
+            "hero": hero,
+            "url": url,
+            "type 1": type_1,
+            "type 2": type_2
+        })
+
+df = pd.DataFrame(items)
+
+df.to_csv("pokemon_data.csv", index=False)
+
+display(df)
