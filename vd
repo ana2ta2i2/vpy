@@ -1,0 +1,87 @@
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+from wordcloud import WordCloud
+import ipywidgets as widgets
+
+df = pd.read_csv("pokemon_data.csv")
+
+df['type 2'].fillna('None', inplace=True)
+
+all_types = df['type 1'].tolist() + df['type 2'].tolist()
+all_types = [t for t in all_types if t != 'None']
+stats_columns = [col for col in df.columns if col.startswith('index_')]
+
+def plot_characters(characters, x_feature, y_feature):
+    if not characters:
+        print("Выберите одного или несколько персонажей.")
+        return
+
+    character_filter = df['hero'].isin(characters)
+
+    selected_characters_data = df[character_filter]
+
+    colors = sns.color_palette('husl', n_colors=len(characters))
+
+    selected_types = pd.concat([selected_characters_data['type 1'], selected_characters_data['type 2']])
+    selected_types = selected_types.replace('-', 'None').dropna()
+    selected_types = selected_types[selected_types != 'None']
+    selected_types = selected_types.tolist()
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies({t: selected_types.count(t) for t in set(selected_types)})
+
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(20, 15))
+
+    for i, character in enumerate(characters):
+        sns.histplot(selected_characters_data[selected_characters_data['hero'] == character][stats_columns].values.flatten(),
+                     kde=True, color=colors[i], label=character, ax=axes[0, 0])
+
+    axes[0, 0].set_title('Распределение характеристик выбранных персонажей')
+    axes[0, 0].set_xlabel('Характеристики')
+    axes[0, 0].set_ylabel('Частота')
+    axes[0, 0].grid(True)
+    axes[0, 0].legend()
+
+    axes[0, 1].imshow(wordcloud, interpolation='bilinear')
+    axes[0, 1].set_title('Облако слов для выбранных персонажей')
+    axes[0, 1].axis('off')
+
+    pd.Series(selected_types).value_counts().plot.pie(autopct='%1.1f%%', colors=sns.color_palette('husl', n_colors=len(set(selected_types))), ax=axes[1, 0])
+    axes[1, 0].set_title('Распределение типов персонажей')
+    axes[1, 0].set_ylabel('')
+
+    for i, character in enumerate(characters):
+        sns.scatterplot(x=x_feature, y=y_feature, data=selected_characters_data[selected_characters_data['hero'] == character], color=colors[i], ax=axes[1, 1], label=character)
+
+    axes[1, 1].set_title('Диаграмма рассеяния')
+    axes[1, 1].set_xlabel(x_feature)
+    axes[1, 1].set_ylabel(y_feature)
+    axes[1, 1].legend()
+
+    plt.tight_layout()
+    plt.show()
+
+characters_checkboxes = widgets.SelectMultiple(
+    options=df['hero'],
+    description='Персонажи:',
+    disabled=False
+)
+
+x_feature_dropdown = widgets.Dropdown(
+    options=stats_columns,
+    description='Характеристика X:',
+    disabled=False
+)
+
+y_feature_dropdown = widgets.Dropdown(
+    options=stats_columns,
+    description='Характеристика Y:',
+    disabled=False
+)
+
+characters_checkboxes.value = [df['hero'].iloc[0]]
+if len(stats_columns) > 0:
+    x_feature_dropdown.value = stats_columns[0]
+if len(stats_columns) > 1:
+    y_feature_dropdown.value = stats_columns[1]
+
+widgets.interactive(plot_characters, characters=characters_checkboxes, x_feature=x_feature_dropdown, y_feature=y_feature_dropdown)
